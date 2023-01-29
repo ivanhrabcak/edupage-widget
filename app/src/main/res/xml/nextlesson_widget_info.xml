@@ -2,8 +2,8 @@
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:minWidth="140dip"
-    android:minHeight="40dip"
-    android:minResizeHeight="40dip"
+    android:minHeight="126dip"
+    android:minResizeHeight="126dip"
     android:minResizeWidth="140dip"
     android:updatePeriodMillis="1500"
     android:initialLayout="@layout/nextlesson_appwidget"
@@ -13,4 +13,3 @@
     android:previewImage="@drawable/android">
 
 </appwidget-provider>
-<!--    android:configure="" -->

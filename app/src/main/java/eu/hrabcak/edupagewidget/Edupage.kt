@@ -19,75 +19,10 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 import kotlin.math.log
 
-
-data class Time(
-        val hour: Int,
-        val minute: Int
-) {
-
-    companion object {
-        fun now(): Time {
-            val format = SimpleDateFormat("HH:mm")
-            val currentTime = format.format(Calendar.getInstance().time)
-
-            return Time(currentTime)
-        }
-    }
-
-    constructor(formattedTime: String) : this(formattedTime.split(":")[0].toInt(), formattedTime.split(":")[1].toInt())
-
-    fun isBefore(time: Time): Boolean {
-        return time.minute < minute &&
-                time.hour < hour
-    }
-
-    fun isExact(time: Time): Boolean {
-        return time.minute == minute &&
-                time.hour == hour
-    }
-
-    fun isAfter(time: Time): Boolean {
-        return !isBefore(time)
-    }
-}
-
 data class EduLessonTime(
-        val start: Time,
-        val end: Time
+        val start: Date,
+        val end: Date
 )
-
-data class EduDate(
-        val year: String,
-        val day: String,
-        val month: String
-) {
-
-    constructor(formattedDate: String) : this(formattedDate.split("-")[0], formattedDate.split("-")[1], formattedDate.split("-")[2])
-
-    companion object {
-        fun today(): EduDate {
-            val format = SimpleDateFormat("yyyy-MM-dd")
-            val currentDate = format.format(Calendar.getInstance().time)
-
-            return EduDate(currentDate)
-        }
-
-        @RequiresApi(Build.VERSION_CODES.O)
-        fun tomorrow(): EduDate {
-            val format = SimpleDateFormat("yyyy-MM-dd")
-            val tomorrowDate = format.format(Date.from(
-                    Calendar.getInstance().time
-                            .toInstant()
-                            .plus(Duration.ofDays(1L))))
-
-            return EduDate(tomorrowDate)
-        }
-    }
-
-    fun toEduFormat(): String {
-        return "${year}-${month}-${day}"
-    }
-}
 
 data class EduLesson(
         val name: String?,
@@ -119,9 +54,11 @@ data class Timetable(
         val lessons: List<EduLesson>
 ) {
     fun getNextLesson(): EduLesson? {
+        val now = Date()
+
         var previousLesson: EduLesson? = null
         for (lesson in lessons) {
-            if (lesson.time.start.isAfter(Time.now()) || lesson.time.start.isExact(Time.now())) {
+            if (lesson.time.start.after(now) || lesson.time.start == now) {
                 if (previousLesson == null) {
                     return lessons[0]
                 }
@@ -137,12 +74,14 @@ data class Timetable(
     }
 
     fun getCurrentLesson(): EduLesson? {
+        val now = Date()
+
         var isAfterPreviousLesson = false
         for (lesson in lessons) {
-            if (lesson.time.start.isAfter(Time.now()) ||
-                    lesson.time.start.isExact(Time.now()) &&
-                    lesson.time.end.isBefore(Time.now()) ||
-                    lesson.time.end.isExact(Time.now())) {
+            if (lesson.time.start.after(now) ||
+                    lesson.time.start == now &&
+                    lesson.time.end.before(now) ||
+                    lesson.time.end == now) {
                 return lesson
             }
             else if (isAfterPreviousLesson) {
@@ -159,8 +98,8 @@ data class Timetable(
 
                 return EduLesson.breakLesson(EduLessonTime(breakStart, breakEnd))
             }
-            else if (lesson.time.start.isAfter(Time.now()) ||
-                    lesson.time.start.isExact(Time.now())) {
+            else if (lesson.time.start.after(now) ||
+                    lesson.time.start == now) {
                 isAfterPreviousLesson = true
             }
         }
@@ -216,7 +155,7 @@ class Edupage(context: Context) {
         thread.start()
     }
 
-    fun idToTeacher(id: String): String? {
+    private fun idToTeacher(id: String): String? {
         val dbi = data?.getJSONObject("dbi")
         return if (dbi != null) {
             val teacherData = dbi.getJSONObject("teachers").getJSONObject(id)
@@ -226,17 +165,17 @@ class Edupage(context: Context) {
         }
     }
 
-    fun idToSubject(id: String): String? {
+    private fun idToSubject(id: String): String? {
         val dbi = data?.getJSONObject("dbi")
         return dbi?.getJSONObject("subjects")?.getJSONObject(id)?.getString("short")
     }
 
-    fun idToClassroom(id: String): String? {
+    private fun idToClassroom(id: String): String? {
         val dbi = data?.getJSONObject("dbi")
         return dbi?.getJSONObject("classrooms")?.getJSONObject(id)?.getString("short")
     }
 
-    fun getTimetableDates(): List<EduDate>? {
+    fun getTimetableDates(): List<Date>? {
         if (!isLoggedIn) {
             return null
         }
@@ -248,15 +187,28 @@ class Edupage(context: Context) {
         val dp = data!!.getJSONObject("dp")
         val dates = dp.getJSONObject("dates")
 
-        val timetableDates: MutableList<EduDate> = mutableListOf()
+
+        val calendar = Calendar.getInstance()
+
+        calendar.set(Calendar.SECOND, 0)
+        calendar.set(Calendar.MINUTE, 0)
+        calendar.set(Calendar.HOUR_OF_DAY, 0)
+
+        val timetableDates: MutableList<Date> = mutableListOf()
         for (date in dates.keys()) {
-            timetableDates.add(EduDate(date))
+            val (year, month, day) = date.split("-")
+
+            calendar.set(Calendar.YEAR, year.toInt())
+            calendar.set(Calendar.MONTH, month.toInt())
+            calendar.set(Calendar.DAY_OF_MONTH, day.toInt())
+
+            timetableDates.add(calendar.time)
         }
 
         return timetableDates
     }
 
-    fun getTimetable(date: EduDate): Timetable? {
+    fun getTimetable(date: Date): Timetable? {
         if (!isLoggedIn) {
             return null
         }
@@ -265,13 +217,16 @@ class Edupage(context: Context) {
             return null
         }
 
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd")
+        val formattedDate = dateFormat.format(date)
+
         val dp = data!!.getJSONObject("dp")
         val dates = dp.getJSONObject("dates")
-        if (!dates.has(date.toEduFormat())) {
+        if (!dates.has(formattedDate)) {
             return null
         }
 
-        val datePlans = dates.getJSONObject(date.toEduFormat())
+        val datePlans = dates.getJSONObject(formattedDate)
         val plan = datePlans.getJSONArray("plan")
 
         val timetable: MutableList<EduLesson> = mutableListOf()
@@ -279,7 +234,7 @@ class Edupage(context: Context) {
             val subj = plan.getJSONObject(i)
 
             val header = subj.getJSONArray("header")
-            if (header.length() == 0) {
+            if (header.length() == 0 || subj.getString("type") != "lesson") {
                 continue
             }
 
@@ -294,7 +249,26 @@ class Edupage(context: Context) {
 
             val start = subj.getString("starttime")
             val end = subj.getString("endtime")
-            val eduLessonTime = EduLessonTime(Time(start), Time(end))
+
+            val (startHour, startMinute) = start.split(":")
+            val (endHour, endMinute) = end.split(":")
+
+            val calendar = Calendar.getInstance()
+            calendar.time = date
+
+            calendar.set(Calendar.SECOND, 0)
+
+            calendar.set(Calendar.HOUR_OF_DAY, startHour.toInt())
+            calendar.set(Calendar.MINUTE, startMinute.toInt())
+
+            val startDate = calendar.time
+
+            calendar.set(Calendar.HOUR_OF_DAY, endHour.toInt())
+            calendar.set(Calendar.MINUTE, endMinute.toInt())
+
+            val endDate = calendar.time
+
+            val eduLessonTime = EduLessonTime(startDate, endDate)
 
             val onlineLessonLink: String? = if (subj.has("ol_url")) {
                 subj.getString("ol_url")
