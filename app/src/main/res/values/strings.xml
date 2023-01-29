@@ -1,3 +1,9 @@
 <resources>
     <string name="app_name">Edupage Widget</string>
+    <string name="next_lesson_text">Next Lesson:</string>
+    <string name="subdomain_label">Subdomain:</string>
+    <string name="username_label">Username:</string>
+    <string name="password_label">Password:</string>
+    <string name="save_label">Save</string>
+    <string name="update_interval_label">Update interval (seconds):</string>
 </resources>

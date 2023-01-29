@@ -7,8 +7,8 @@ import android.content.Intent
 import java.util.Calendar
 
 object AppWidgetAlarm {
-    private val ALARM_ID = 0
-    private val INTERVAL_MILLIS = 10_000
+    private const val ALARM_ID = 0
+    var INTERVAL_MILLIS = 30_000
 
     fun startAlarm(context: Context) {
         val calendar = Calendar.getInstance()

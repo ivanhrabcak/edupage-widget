@@ -10,12 +10,40 @@ import android.view.View
 import android.widget.RemoteViews
 import java.util.*
 
+//fun Date(): Date {
+//    val calendar = Calendar.getInstance()
+//    calendar.add(Calendar.DAY_OF_YEAR, 1)
+//
+//    calendar.set(Calendar.HOUR_OF_DAY, 8)
+//    calendar.set(Calendar.MINUTE, 16)
+//
+//    return calendar.time
+//}
+
+fun List<Date>.containsDate(date: Date): Boolean {
+    val calendar = Calendar.getInstance()
+
+    return this.any {
+        calendar.time = date
+
+        val dayOfYear = calendar.get(Calendar.DAY_OF_YEAR)
+        val year = calendar.get(Calendar.YEAR)
+
+        calendar.time = it
+
+        val compareDayOfYear = calendar.get(Calendar.DAY_OF_YEAR)
+        val compareYear = calendar.get(Calendar.YEAR)
+
+        dayOfYear == compareDayOfYear && year == compareYear
+    }
+}
+
 class NextLessonWidgetProvider : AppWidgetProvider() {
     private var edupage: Edupage? = null
     private var remoteViews: RemoteViews? = null
 
     companion object {
-        val ACTION_AUTO_UPDATE = "AUTO_UPDATE"
+        const val ACTION_AUTO_UPDATE = "AUTO_UPDATE"
     }
 
     override fun onEnabled(context: Context) {
@@ -48,23 +76,28 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         onUpdate(context, appWidgetManager, widgetIds)
     }
 
-    private fun showLesson(lesson: EduLesson, index: Int) {
-        println("Showing lesson!")
+    private fun showLesson(lesson: EduLesson, index: Int, context: Context) {
 
-        remoteViews?.setCharSequence(R.id.lesson_number, "setText", (index + 1).toString())
+        remoteViews?.setCharSequence(R.id.lesson_number, "setText", (index + 1).toString() + ".")
         remoteViews?.setCharSequence(R.id.subject, "setText", lesson.name)
         remoteViews?.setCharSequence(R.id.time, "setText", lesson.time.toString())
         remoteViews?.setCharSequence(R.id.classroom, "setText", lesson.classroom)
 
         remoteViews?.setViewVisibility(R.id.lessonview, View.VISIBLE)
+        remoteViews?.setViewVisibility(R.id.next_lesson_title, View.VISIBLE)
         remoteViews?.setViewVisibility(R.id.error, View.GONE)
+
+        applyRemoteViews(context)
     }
 
     private fun showMessage(error: String, context: Context) {
+
         remoteViews?.setCharSequence(R.id.error, "setText", error)
 
         remoteViews?.setViewVisibility(R.id.error, View.VISIBLE)
+
         remoteViews?.setViewVisibility(R.id.lessonview, View.GONE)
+        remoteViews?.setViewVisibility(R.id.next_lesson_title, View.GONE)
 
         applyRemoteViews(context)
     }
@@ -75,7 +108,12 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         AppWidgetManager.getInstance(context).updateAppWidget(appWidgetId, remoteViews)
     }
 
-    override fun onAppWidgetOptionsChanged(context: Context, appWidgetManager: AppWidgetManager, appWidgetId: Int, newOptions: Bundle) {
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle
+    ) {
         resizeWidget(context, appWidgetId)
         onUpdate(context, appWidgetManager, arrayOf(appWidgetId).toIntArray())
     }
@@ -88,32 +126,31 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
     fun showNextLessonOrError(context: Context) {
         val today = Date()
 
-        if (!edupage!!.getTimetableDates()?.contains(today)!!) {
-            println("no school today!")
+
+        if (!edupage!!.getTimetableDates()?.containsDate(today)!!) {
             showMessage("No school today!", context)
         }
 
         val timetable = edupage!!.getTimetable(today)
         if (timetable == null) {
-            println("Failed to get timetable!")
             showMessage("Error getting timetable", context)
         }
 
         val nextLesson = timetable?.getNextLesson()
         if (nextLesson == null) {
-            println("No more school!")
             showMessage("No more school today!", context)
-        }
-        else {
-            println("Showing lesson!")
-            showLesson(nextLesson, timetable.lessons.indexOf(nextLesson))
+        } else {
+            showLesson(nextLesson, timetable.lessons.indexOf(nextLesson), context)
         }
 
 
     }
 
-    override fun onUpdate(context: Context, appWidgetManager: AppWidgetManager, appWidgetIds: IntArray) {
-        println("Widget updated!")
+    override fun onUpdate(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetIds: IntArray
+    ) {
         if (remoteViews == null) {
             remoteViews = RemoteViews(context.packageName, R.layout.nextlesson_appwidget)
         }
@@ -133,19 +170,16 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
 
             edupage = Edupage(context)
 
-            edupage!!.login(username, password, object: LoginCallback {
+            edupage!!.login(username, password, object : LoginCallback {
                 override fun onError() {
-                    println("Failed to log in!")
                     showMessage("Invalid credentials!", context)
                 }
 
                 override fun onSuccess() {
-                    println("widget logged in!")
                     showNextLessonOrError(context)
                 }
             })
-        }
-        else {
+        } else {
             showNextLessonOrError(context)
         }
     }

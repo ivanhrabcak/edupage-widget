@@ -2,27 +2,29 @@ package eu.hrabcak.edupagewidget
 
 import android.content.Context
 import android.net.ConnectivityManager
-import android.os.Build
-import androidx.annotation.RequiresApi
-import androidx.core.content.ContextCompat.getSystemService
-import com.android.volley.Request
 import com.android.volley.RequestQueue
-import com.android.volley.Response
 import com.android.volley.toolbox.RequestFuture
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import org.json.JSONObject
 import java.lang.Exception
 import java.text.SimpleDateFormat
-import java.time.Duration
 import java.util.*
 import java.util.concurrent.TimeUnit
-import kotlin.math.log
 
 data class EduLessonTime(
-        val start: Date,
-        val end: Date
-)
+    val start: Date,
+    val end: Date
+) {
+    override fun toString(): String {
+        val dateFormat = SimpleDateFormat("H:mm")
+
+        val startFormatted = dateFormat.format(start)
+        val endFormatted = dateFormat.format(end)
+
+        return "$startFormatted-$endFormatted"
+    }
+}
 
 data class EduLesson(
         val name: String?,
@@ -50,24 +52,23 @@ class NetworkUtil {
 
 }
 
+fun String.toIntNoLeadingZero(): Int {
+    return if (this.startsWith("0")) {
+        this.slice(1 until this.length).toInt()
+    } else {
+        this.toInt()
+    }
+}
+
 data class Timetable(
         val lessons: List<EduLesson>
 ) {
     fun getNextLesson(): EduLesson? {
         val now = Date()
 
-        var previousLesson: EduLesson? = null
         for (lesson in lessons) {
-            if (lesson.time.start.after(now) || lesson.time.start == now) {
-                if (previousLesson == null) {
-                    return lessons[0]
-                }
-
-                return previousLesson
-            }
-
-            if (previousLesson == null) {
-                previousLesson = lesson
+            if (now.before(lesson.time.start) || lesson.time.start == now) {
+                return lesson
             }
         }
         return null
@@ -198,9 +199,9 @@ class Edupage(context: Context) {
         for (date in dates.keys()) {
             val (year, month, day) = date.split("-")
 
-            calendar.set(Calendar.YEAR, year.toInt())
-            calendar.set(Calendar.MONTH, month.toInt())
-            calendar.set(Calendar.DAY_OF_MONTH, day.toInt())
+            calendar.set(Calendar.YEAR, year.toIntNoLeadingZero())
+            calendar.set(Calendar.MONTH, month.toIntNoLeadingZero() - 1)
+            calendar.set(Calendar.DAY_OF_MONTH, day.toIntNoLeadingZero())
 
             timetableDates.add(calendar.time)
         }

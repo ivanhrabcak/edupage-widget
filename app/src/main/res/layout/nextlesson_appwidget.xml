@@ -4,9 +4,19 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
 
-    android:layout_margin="8dp"
+
     android:gravity="center"
     android:background="@drawable/nextlesson_widget_shape">
+
+    <TextView
+        android:id="@+id/next_lesson_title"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/next_lesson_text"
+        android:textStyle="bold"
+        android:paddingBottom="5dp"
+        android:textColor="@color/white"
+        android:textSize="20sp" />
 
     <LinearLayout
         android:id="@+id/lessonview"
@@ -15,9 +25,8 @@
         android:background="#041c2c"
         android:gravity="center"
         android:orientation="vertical"
-        android:padding="20dp"
+        android:padding="10dp"
         android:paddingHorizontal="300dp">
-<!--        smaller horizontal-->
 
         <TextView
             android:id="@+id/lesson_number"
@@ -26,12 +35,12 @@
             android:text="1."
             android:textSize="18sp"
             android:textColor="@color/white" />
-<!--        smaller textSize 32sp
-            smaller marginRight 15dp-->
+
         <TextView
             android:id="@+id/subject"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:textStyle="bold"
             android:text="ANJ"
             android:textColor="@color/white"
             android:textSize="32sp" />
