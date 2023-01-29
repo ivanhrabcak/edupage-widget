@@ -6,4 +6,8 @@
     <string name="password_label">Password:</string>
     <string name="save_label">Save</string>
     <string name="update_interval_label">Update interval (seconds):</string>
+    <string name="theme_label">Theme:</string>
+    <string name="transparent_background_label">Transparent Background</string>
+    <string name="save_and_go_back">Save and Go Back</string>
+    <string name="background_warning_text">Be careful: the \"Next Lesson:\" text could get hard to see, depends on your background!</string>
 </resources>

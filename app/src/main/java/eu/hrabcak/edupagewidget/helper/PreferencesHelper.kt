@@ -1,4 +1,4 @@
-package eu.hrabcak.edupagewidget
+package eu.hrabcak.edupagewidget.helper
 
 import android.content.Context
 

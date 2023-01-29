@@ -6,6 +6,7 @@ import com.android.volley.RequestQueue
 import com.android.volley.toolbox.RequestFuture
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
+import eu.hrabcak.edupagewidget.edupage.LoginCallback
 import org.json.JSONObject
 import java.lang.Exception
 import java.text.SimpleDateFormat

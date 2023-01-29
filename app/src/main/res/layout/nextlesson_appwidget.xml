@@ -4,9 +4,11 @@
     android:layout_height="match_parent"
     android:orientation="vertical"
 
+    android:id="@+id/widget_parent"
 
     android:gravity="center"
-    android:background="@drawable/nextlesson_widget_shape">
+    android:background="#001627">
+    <!--- android:background="@drawable/nextlesson_widget_shape" !-->
 
     <TextView
         android:id="@+id/next_lesson_title"

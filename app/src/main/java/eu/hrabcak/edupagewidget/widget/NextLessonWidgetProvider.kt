@@ -1,13 +1,19 @@
-package eu.hrabcak.edupagewidget
+package eu.hrabcak.edupagewidget.widget
 
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
+import eu.hrabcak.edupagewidget.EduLesson
+import eu.hrabcak.edupagewidget.Edupage
+import eu.hrabcak.edupagewidget.helper.PreferencesHelper
+import eu.hrabcak.edupagewidget.R
+import eu.hrabcak.edupagewidget.edupage.LoginCallback
 import java.util.*
 
 //fun Date(): Date {
@@ -47,7 +53,7 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
     }
 
     override fun onEnabled(context: Context) {
-        AppWidgetAlarm.startAlarm(context)
+        WidgetAlarm.startAlarm(context)
     }
 
     override fun onDeleted(context: Context, appWidgetIds: IntArray) {
@@ -57,7 +63,7 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         val widgetIds = appWidgetManager.getAppWidgetIds(componentName)
 
         if (widgetIds.isEmpty()) {
-            AppWidgetAlarm.stopAlarm(context)
+            WidgetAlarm.stopAlarm(context)
         }
     }
 
@@ -87,7 +93,7 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         remoteViews?.setViewVisibility(R.id.next_lesson_title, View.VISIBLE)
         remoteViews?.setViewVisibility(R.id.error, View.GONE)
 
-        applyRemoteViews(context)
+//        applyRemoteViews(context)
     }
 
     private fun showMessage(error: String, context: Context) {
@@ -146,6 +152,30 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
 
     }
 
+    private fun updateTheme(context: Context) {
+        val widgetBackgroundColorString = PreferencesHelper.getString(context, "widgetBackgroundColor", "#001627")
+        val lessonBackgroundColorString = PreferencesHelper.getString(context, "lessonBackgroundColor", "#041c2c")
+        val textColorString = PreferencesHelper.getString(context, "textColor", "white")
+
+        val widgetBackgroundColor = Color.parseColor(widgetBackgroundColorString)
+        val lessonBackgroundColor = Color.parseColor(lessonBackgroundColorString)
+        val textColor = Color.parseColor(textColorString)
+
+        val textViews = arrayOf(
+            R.id.next_lesson_title, R.id.lesson_number, R.id.subject,
+            R.id.time, R.id.classroom, R.id.error
+        )
+
+        textViews.forEach {
+            remoteViews?.setTextColor(it, textColor)
+        }
+
+        remoteViews?.setInt(R.id.widget_parent, "setBackgroundColor", widgetBackgroundColor)
+        remoteViews?.setInt(R.id.lessonview, "setBackgroundColor", lessonBackgroundColor)
+
+        applyRemoteViews(context)
+    }
+
     override fun onUpdate(
         context: Context,
         appWidgetManager: AppWidgetManager,
@@ -182,5 +212,7 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         } else {
             showNextLessonOrError(context)
         }
+
+        updateTheme(context)
     }
 }

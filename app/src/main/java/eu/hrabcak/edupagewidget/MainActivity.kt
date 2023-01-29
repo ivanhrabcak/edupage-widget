@@ -1,6 +1,5 @@
 package eu.hrabcak.edupagewidget
 
-import android.app.PendingIntent
 import android.content.Intent
 import android.os.Build
 import androidx.appcompat.app.AppCompatActivity
@@ -10,20 +9,30 @@ import android.widget.EditText
 import android.widget.TextView
 import androidx.annotation.RequiresApi
 import com.google.android.material.slider.Slider
+import eu.hrabcak.edupagewidget.helper.PreferencesHelper
+import eu.hrabcak.edupagewidget.widget.NextLessonWidgetProvider
+import eu.hrabcak.edupagewidget.widget.WidgetAlarm
 import java.util.*
 
 class MainActivity : AppCompatActivity() {
+    lateinit var subdomainEditText: EditText
+    lateinit var usernameEditText: EditText
+    private lateinit var passwordEditText: EditText
+    lateinit var updateIntervalSlider: Slider
+    lateinit var updateIntervalValue: TextView
+
+
     @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        val subdomainEditText = findViewById<EditText>(R.id.subdomain_edittext)
-        val usernameEditText = findViewById<EditText>(R.id.username_edittext)
-        val passwordEditText = findViewById<EditText>(R.id.password_edittext)
+        subdomainEditText = findViewById(R.id.subdomain_edittext)
+        usernameEditText = findViewById(R.id.username_edittext)
+        passwordEditText = findViewById(R.id.password_edittext)
 
-        val updateIntervalSlider = findViewById<Slider>(R.id.update_interval)
-        val updateIntervalValue = findViewById<TextView>(R.id.update_interval_value)
+        updateIntervalSlider = findViewById(R.id.update_interval)
+        updateIntervalValue = findViewById(R.id.update_interval_value)
 
         val savedSubdomain = PreferencesHelper.getString(this, "subdomain", "no_subdomain")
         val savedUsername = PreferencesHelper.getString(this, "username", "no_username")
@@ -49,6 +58,11 @@ class MainActivity : AppCompatActivity() {
             updateIntervalValue.text = value.toInt().toString()
         }
 
+        findViewById<Button>(R.id.themes_button).setOnClickListener {
+            val themingActivityIntent = Intent(this, ThemingActivity::class.java)
+            startActivity(themingActivityIntent)
+        }
+
         findViewById<Button>(R.id.save_button).setOnClickListener {
             val subdomain = subdomainEditText.text.toString()
             val username = usernameEditText.text.toString()
@@ -60,7 +74,7 @@ class MainActivity : AppCompatActivity() {
             PreferencesHelper.putString(this, "password", password)
             PreferencesHelper.putString(this, "updateInterval", updateInterval)
 
-            AppWidgetAlarm.INTERVAL_MILLIS = updateIntervalSlider.value.toInt() * 1000
+            WidgetAlarm.INTERVAL_MILLIS = updateIntervalSlider.value.toInt() * 1000
 
             val updateWidgetIntent = Intent(this, NextLessonWidgetProvider::class.java)
             updateWidgetIntent.action = NextLessonWidgetProvider.ACTION_AUTO_UPDATE

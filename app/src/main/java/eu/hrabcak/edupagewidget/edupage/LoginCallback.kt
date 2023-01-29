@@ -1,4 +1,4 @@
-package eu.hrabcak.edupagewidget
+package eu.hrabcak.edupagewidget.edupage
 
 interface LoginCallback {
     fun onError()

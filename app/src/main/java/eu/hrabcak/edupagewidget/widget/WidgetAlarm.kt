@@ -1,4 +1,4 @@
-package eu.hrabcak.edupagewidget
+package eu.hrabcak.edupagewidget.widget
 
 import android.app.AlarmManager
 import android.app.PendingIntent
@@ -6,7 +6,7 @@ import android.content.Context
 import android.content.Intent
 import java.util.Calendar
 
-object AppWidgetAlarm {
+object WidgetAlarm {
     private const val ALARM_ID = 0
     var INTERVAL_MILLIS = 30_000
 

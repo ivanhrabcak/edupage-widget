@@ -13,7 +13,7 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.EdupageWidget">
-        <receiver android:name="NextLessonWidgetProvider"
+        <receiver android:name=".widget.NextLessonWidgetProvider"
             android:label="Next Lesson Widget">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
@@ -24,6 +24,10 @@
             <meta-data android:name="android.appwidget.provider"
                 android:resource="@xml/nextlesson_widget_info"/>
         </receiver>
+
+        <activity android:name=".ThemingActivity">
+
+        </activity>
 
         <activity android:name=".MainActivity">
             <intent-filter>
