@@ -9,11 +9,10 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
-import eu.hrabcak.edupagewidget.EduLesson
-import eu.hrabcak.edupagewidget.Edupage
+import eu.hrabcak.edupagewidget.*
 import eu.hrabcak.edupagewidget.helper.PreferencesHelper
-import eu.hrabcak.edupagewidget.R
 import eu.hrabcak.edupagewidget.edupage.LoginCallback
+import java.text.SimpleDateFormat
 import java.util.*
 
 //fun Date(): Date {
@@ -104,8 +103,7 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
 
         remoteViews?.setViewVisibility(R.id.lessonview, View.GONE)
         remoteViews?.setViewVisibility(R.id.next_lesson_title, View.GONE)
-
-        applyRemoteViews(context)
+        updateTheme(context)
     }
 
 
@@ -125,6 +123,7 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
     }
 
     private fun applyRemoteViews(context: Context) {
+        println("Applying views..")
         val appWidgetManager = AppWidgetManager.getInstance(context)
         appWidgetManager.updateAppWidget(ComponentName(context, this::class.java), remoteViews)
     }
@@ -132,20 +131,48 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
     fun showNextLessonOrError(context: Context) {
         val today = Date()
 
+        val dateFormat = SimpleDateFormat("yy-dd-MM")
+        println("internet: ${NetworkUtil.isInternetAvailable()}")
+        if (!NetworkUtil.isInternetAvailable()) {
+            val key = dateFormat.format(today)
+
+            val cached = ApplicationCache.cache.get(key)
+            if (cached == null) {
+                showMessage("Network down!", context)
+                return
+            }
+
+            println("Using cached!")
+
+            val nextLesson = cached.getNextLesson()
+            if (nextLesson == null) {
+                showMessage("No more school today!", context)
+            } else {
+                showLesson(nextLesson, cached.lessons.indexOf(nextLesson), context)
+            }
+
+            return
+        }
 
         if (!edupage!!.getTimetableDates()?.containsDate(today)!!) {
             showMessage("No school today!", context)
+            return
         }
 
         val timetable = edupage!!.getTimetable(today)
         if (timetable == null) {
             showMessage("Error getting timetable", context)
+            return
         }
 
-        val nextLesson = timetable?.getNextLesson()
+        val key = dateFormat.format(today)
+        ApplicationCache.cache.put(key, timetable)
+
+        val nextLesson = timetable.getNextLesson()
         if (nextLesson == null) {
             showMessage("No more school today!", context)
         } else {
+            println("Showing lesson...")
             showLesson(nextLesson, timetable.lessons.indexOf(nextLesson), context)
         }
 
@@ -181,6 +208,7 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
+        println("Updating...")
         if (remoteViews == null) {
             remoteViews = RemoteViews(context.packageName, R.layout.nextlesson_appwidget)
         }
@@ -198,21 +226,26 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
                 return
             }
 
-            edupage = Edupage(context)
+            if (NetworkUtil.isInternetAvailable()) {
+                edupage = Edupage(context)
 
-            edupage!!.login(username, password, object : LoginCallback {
-                override fun onError() {
-                    showMessage("Invalid credentials!", context)
-                }
+                edupage!!.login(username, password, object : LoginCallback {
+                    override fun onError() {
+                        showMessage("Invalid credentials!", context)
+                        updateTheme(context)
+                    }
 
-                override fun onSuccess() {
-                    showNextLessonOrError(context)
-                }
-            })
+                    override fun onSuccess() {
+                        showNextLessonOrError(context)
+                        updateTheme(context)
+                    }
+                })
+            } else {
+                showNextLessonOrError(context)
+            }
         } else {
             showNextLessonOrError(context)
+            updateTheme(context)
         }
-
-        updateTheme(context)
     }
 }

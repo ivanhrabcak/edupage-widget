@@ -1,17 +1,21 @@
 package eu.hrabcak.edupagewidget
 
 import android.content.Context
-import android.net.ConnectivityManager
 import com.android.volley.RequestQueue
 import com.android.volley.toolbox.RequestFuture
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
 import eu.hrabcak.edupagewidget.edupage.LoginCallback
+import kotlinx.coroutines.runBlocking
 import org.json.JSONObject
-import java.lang.Exception
+import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.*
+import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 
 data class EduLessonTime(
     val start: Date,
@@ -43,10 +47,25 @@ data class EduLesson(
 
 class NetworkUtil {
     companion object {
-        fun isNetworkAvailable(context: Context): Boolean { // no better way to do this unfortunately :(((
-            val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager?
-            val activeNetworkInfo = connectivityManager!!.activeNetworkInfo
-            return activeNetworkInfo != null && activeNetworkInfo.isConnected
+        fun isInternetAvailable(): Boolean {
+            val result = LinkedBlockingQueue<Boolean>()
+
+            thread {
+                result.add(try {
+                    val url = URL("https://www.google.com/")
+                    val urlc = url.openConnection() as HttpURLConnection
+                    urlc.setRequestProperty("User-Agent", "test")
+                    urlc.setRequestProperty("Connection", "close")
+                    urlc.connectTimeout = 1000 // mTimeout is in seconds
+                    urlc.connect()
+
+                    urlc.responseCode == 200
+                } catch (e: IOException) {
+                    false
+                })
+            }
+
+            return result.take()
         }
     }
 

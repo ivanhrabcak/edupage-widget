@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Gradle: io.github.reactivecircus.cache4k:cache4k-jvm:0.9.0">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.github.reactivecircus.cache4k/cache4k-jvm/0.9.0/59ba4884086858c4af8163e1426dd6c07da08def/cache4k-jvm-0.9.0.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.github.reactivecircus.cache4k/cache4k-jvm/0.9.0/e3d9b4c939c66326bd0e005c667ea89494e1c59d/cache4k-jvm-0.9.0-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$USER_HOME$/.gradle/caches/modules-2/files-2.1/io.github.reactivecircus.cache4k/cache4k-jvm/0.9.0/b6a601cbc6ba54a71aacbdf42c7f7ce9a1469054/cache4k-jvm-0.9.0-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>

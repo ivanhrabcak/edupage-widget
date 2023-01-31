@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="eu.hrabcak.edupagewidget"
     android:installLocation="preferExternal">
 
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
@@ -13,8 +12,9 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.EdupageWidget">
-        <receiver android:name=".widget.NextLessonWidgetProvider"
-            android:label="Next Lesson Widget">
+        <receiver android:name="eu.hrabcak.edupagewidget.widget.NextLessonWidgetProvider"
+            android:label="Next Lesson Widget"
+            android:exported="true">
             <intent-filter>
                 <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
             </intent-filter>
@@ -25,11 +25,12 @@
                 android:resource="@xml/nextlesson_widget_info"/>
         </receiver>
 
-        <activity android:name=".ThemingActivity">
+        <activity android:name="eu.hrabcak.edupagewidget.ThemingActivity">
 
         </activity>
 
-        <activity android:name=".MainActivity">
+        <activity android:name="eu.hrabcak.edupagewidget.MainActivity"
+            android:exported="true">
             <intent-filter>
 
                 <action android:name="android.intent.action.MAIN" />
