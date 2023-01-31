@@ -22,7 +22,7 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
     - name: Build with Gradle
-      run: ./gradlew build
+      run: ./gradlew assembleRelease --stacktrace
     - name: "Rename archive"
       run: mv app/build/outputs/apk/release app-release.apk
     - name: "Create GitHub release"
