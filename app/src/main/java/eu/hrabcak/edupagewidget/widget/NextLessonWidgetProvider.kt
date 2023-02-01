@@ -113,10 +113,6 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         appWidgetManager.updateAppWidget(ComponentName(context, this::class.java), remoteViews)
     }
 
-    private fun showNextLessonOrError(context: Context, remoteViews: RemoteViews) {
-
-    }
-
     private fun createRemoteViews(context: Context): RemoteViews {
         val remoteViews = RemoteViews(context.packageName, R.layout.nextlesson_appwidget)
 
