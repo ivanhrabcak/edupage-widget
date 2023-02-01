@@ -88,7 +88,6 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_marginStart="88dp"
-        android:layout_marginLeft="88dp"
         android:text="@string/update_interval_label"
         app:layout_constraintBottom_toTopOf="@+id/update_interval"
         app:layout_constraintStart_toStartOf="@+id/view" />
@@ -117,16 +116,17 @@
         app:layout_constraintTop_toBottomOf="@+id/update_interval" />
 
 
-
     <TextView
         android:id="@+id/update_interval_value"
-        android:layout_width="28dp"
-        android:layout_height="20dp"
+        android:layout_width="38dp"
+        android:layout_height="16dp"
         android:text="30"
         app:layout_constraintBottom_toBottomOf="@+id/update_interval"
         app:layout_constraintEnd_toStartOf="@+id/update_interval"
+        app:layout_constraintHorizontal_bias="0.0"
         app:layout_constraintStart_toStartOf="@+id/view"
-        app:layout_constraintTop_toTopOf="@+id/update_interval" />
+        app:layout_constraintTop_toTopOf="@+id/update_interval"
+        app:layout_constraintVertical_bias="0.468" />
 
     <Button
         android:id="@+id/themes_button"
