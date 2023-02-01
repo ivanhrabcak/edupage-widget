@@ -5,72 +5,16 @@ import com.android.volley.RequestQueue
 import com.android.volley.toolbox.RequestFuture
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
-import eu.hrabcak.edupagewidget.edupage.LoginCallback
-import kotlinx.coroutines.runBlocking
+import eu.hrabcak.edupagewidget.edupage.Lesson
+import eu.hrabcak.edupagewidget.edupage.LessonDuration
+import eu.hrabcak.edupagewidget.edupage.Task
+import eu.hrabcak.edupagewidget.edupage.Timetable
+import eu.hrabcak.edupagewidget.exception.NotLoggedInException
 import org.json.JSONObject
-import java.io.IOException
-import java.net.HttpURLConnection
-import java.net.URL
 import java.text.SimpleDateFormat
 import java.util.*
-import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 import kotlin.concurrent.thread
-
-data class EduLessonTime(
-    val start: Date,
-    val end: Date
-) {
-    override fun toString(): String {
-        val dateFormat = SimpleDateFormat("H:mm")
-
-        val startFormatted = dateFormat.format(start)
-        val endFormatted = dateFormat.format(end)
-
-        return "$startFormatted-$endFormatted"
-    }
-}
-
-data class EduLesson(
-        val name: String?,
-        val teacher: String?,
-        val classroom: String?,
-        val time: EduLessonTime,
-        val onlineLessonLink: String?
-) {
-    companion object {
-        fun breakLesson(time: EduLessonTime): EduLesson {
-            return EduLesson("Break", "No Teacher", "No Classroom", time, null)
-        }
-    }
-}
-
-class NetworkUtil {
-    companion object {
-        fun isInternetAvailable(): Boolean {
-            val result = LinkedBlockingQueue<Boolean>()
-
-            thread {
-                result.add(try {
-                    val url = URL("https://www.google.com/")
-                    val urlc = url.openConnection() as HttpURLConnection
-                    urlc.setRequestProperty("User-Agent", "test")
-                    urlc.setRequestProperty("Connection", "close")
-                    urlc.connectTimeout = 1000 // mTimeout is in seconds
-                    urlc.connect()
-
-                    urlc.responseCode == 200
-                } catch (e: IOException) {
-                    false
-                })
-            }
-
-            return result.take()
-        }
-    }
-
-
-}
 
 fun String.toIntNoLeadingZero(): Int {
     return if (this.startsWith("0")) {
@@ -80,70 +24,26 @@ fun String.toIntNoLeadingZero(): Int {
     }
 }
 
-data class Timetable(
-        val lessons: List<EduLesson>
-) {
-    fun getNextLesson(): EduLesson? {
-        val now = Date()
-
-        for (lesson in lessons) {
-            if (now.before(lesson.time.start) || lesson.time.start == now) {
-                return lesson
-            }
-        }
-        return null
-    }
-
-    fun getCurrentLesson(): EduLesson? {
-        val now = Date()
-
-        var isAfterPreviousLesson = false
-        for (lesson in lessons) {
-            if (lesson.time.start.after(now) ||
-                    lesson.time.start == now &&
-                    lesson.time.end.before(now) ||
-                    lesson.time.end == now) {
-                return lesson
-            }
-            else if (isAfterPreviousLesson) {
-                val previousLessonIndex = lessons.indexOf(lesson) - 1
-
-                if (previousLessonIndex == -1) {
-                    return null
-                }
-
-                val previousLesson = lessons[previousLessonIndex]
-
-                val breakStart = previousLesson.time.end
-                val breakEnd = lesson.time.start
-
-                return EduLesson.breakLesson(EduLessonTime(breakStart, breakEnd))
-            }
-            else if (lesson.time.start.after(now) ||
-                    lesson.time.start == now) {
-                isAfterPreviousLesson = true
-            }
-        }
-
-        return null
-    }
-}
-
 class Edupage(context: Context) {
     var data: JSONObject? = null
     private val requestQueue: RequestQueue = Volley.newRequestQueue(context)
 
     private var isLoggedIn = false
 
-    fun login(username: String, password: String, loginCallback: LoginCallback) {
+    fun login(username: String, password: String): Task {
         if (isLoggedIn) {
-            loginCallback.onError()
+            throw NotLoggedInException()
         }
 
         val future: RequestFuture<String> = RequestFuture.newFuture()
 
         val url = "https://portal.edupage.org/index.php?jwid=jw2&module=Login"
-        val parameters: Map<String, String> = mapOf(Pair("meno", username), Pair("password", password), Pair("akcia", "login"))
+        val parameters: Map<String, String> = mapOf(
+            "meno" to username,
+            "password" to password,
+            "akcia" to "login"
+        )
+
         val stringRequest: StringRequest = object : StringRequest(Method.POST, url, future, future) {
             override fun getParams(): Map<String, String> {
                 return parameters
@@ -151,29 +51,24 @@ class Edupage(context: Context) {
         }
 
         requestQueue.add(stringRequest)
-        val thread = object : Thread() {
-
-            override fun run() {
-                super.run()
-                try {
-                    val response = future.get(5, TimeUnit.SECONDS)
-                    val unparsedJson = response.split("\$j(document).ready(function() {")[1]
-                            .split(");")[0]
-                            .replace("\t", "")
-                            .split("userhome(")[1]
-                            .replace("\n", "")
-                            .replace("\r", "")
-                    data = JSONObject(unparsedJson)
-                    isLoggedIn = true
-                    loginCallback.onSuccess()
-                }
-                catch (e: Exception) {
-                    e.printStackTrace()
-                    loginCallback.onError()
-                }
+        val thread = thread(false) {
+            try {
+                val response = future.get(5, TimeUnit.SECONDS)
+                val rawJSON = response.split("\$j(document).ready(function() {")[1]
+                        .split(");")[0]
+                        .replace("\t", "")
+                        .split("userhome(")[1]
+                        .replace("\n", "")
+                        .replace("\r", "")
+                data = JSONObject(rawJSON)
+                isLoggedIn = true
+            }
+            catch (e: Exception) {
+                e.printStackTrace()
             }
         }
-        thread.start()
+
+        return Task(thread)
     }
 
     private fun idToTeacher(id: String): String? {
@@ -250,7 +145,7 @@ class Edupage(context: Context) {
         val datePlans = dates.getJSONObject(formattedDate)
         val plan = datePlans.getJSONArray("plan")
 
-        val timetable: MutableList<EduLesson> = mutableListOf()
+        val timetable: MutableList<Lesson> = mutableListOf()
         for (i in 0 until plan.length()) {
             val subj = plan.getJSONObject(i)
 
@@ -289,7 +184,7 @@ class Edupage(context: Context) {
 
             val endDate = calendar.time
 
-            val eduLessonTime = EduLessonTime(startDate, endDate)
+            val lessonDuration = LessonDuration(startDate, endDate)
 
             val onlineLessonLink: String? = if (subj.has("ol_url")) {
                 subj.getString("ol_url")
@@ -297,7 +192,7 @@ class Edupage(context: Context) {
                 null
             }
 
-            val lesson = EduLesson(subject, teacher, classroomNumber, eduLessonTime, onlineLessonLink)
+            val lesson = Lesson(subject, teacher, classroomNumber, lessonDuration, onlineLessonLink)
             timetable.add(lesson)
         }
 

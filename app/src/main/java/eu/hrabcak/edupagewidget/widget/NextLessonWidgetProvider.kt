@@ -6,12 +6,15 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
+import androidx.annotation.RequiresApi
 import eu.hrabcak.edupagewidget.*
+import eu.hrabcak.edupagewidget.edupage.Lesson
+import eu.hrabcak.edupagewidget.helper.NetworkHelper
 import eu.hrabcak.edupagewidget.helper.PreferencesHelper
-import eu.hrabcak.edupagewidget.edupage.LoginCallback
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -81,8 +84,7 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         onUpdate(context, appWidgetManager, widgetIds)
     }
 
-    private fun showLesson(lesson: EduLesson, index: Int, context: Context) {
-
+    private fun showLesson(lesson: Lesson, index: Int) {
         remoteViews?.setCharSequence(R.id.lesson_number, "setText", (index + 1).toString() + ".")
         remoteViews?.setCharSequence(R.id.subject, "setText", lesson.name)
         remoteViews?.setCharSequence(R.id.time, "setText", lesson.time.toString())
@@ -91,8 +93,6 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         remoteViews?.setViewVisibility(R.id.lessonview, View.VISIBLE)
         remoteViews?.setViewVisibility(R.id.next_lesson_title, View.VISIBLE)
         remoteViews?.setViewVisibility(R.id.error, View.GONE)
-
-//        applyRemoteViews(context)
     }
 
     private fun showMessage(error: String, context: Context) {
@@ -106,19 +106,15 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         updateTheme(context)
     }
 
-
-    private fun resizeWidget(context: Context, appWidgetId: Int) {
-        val remoteViews = RemoteViews(context.packageName, R.layout.nextlesson_appwidget)
-        AppWidgetManager.getInstance(context).updateAppWidget(appWidgetId, remoteViews)
-    }
-
     override fun onAppWidgetOptionsChanged(
         context: Context,
         appWidgetManager: AppWidgetManager,
         appWidgetId: Int,
         newOptions: Bundle
     ) {
-        resizeWidget(context, appWidgetId)
+        val remoteViews = RemoteViews(context.packageName, R.layout.nextlesson_appwidget)
+        AppWidgetManager.getInstance(context).updateAppWidget(appWidgetId, remoteViews)
+
         onUpdate(context, appWidgetManager, arrayOf(appWidgetId).toIntArray())
     }
 
@@ -128,29 +124,31 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         appWidgetManager.updateAppWidget(ComponentName(context, this::class.java), remoteViews)
     }
 
-    fun showNextLessonOrError(context: Context) {
+    private fun showNextLessonOrError(context: Context) {
         val today = Date()
 
         val dateFormat = SimpleDateFormat("yy-dd-MM")
-        println("internet: ${NetworkUtil.isInternetAvailable()}")
-        if (!NetworkUtil.isInternetAvailable()) {
-            val key = dateFormat.format(today)
+        val todayDateString = dateFormat.format(today)
 
-            val cached = ApplicationCache.cache.get(key)
+        if (!NetworkHelper.isInternetAvailable()) {
+            val cached = ApplicationCache.cache.get(todayDateString)
             if (cached == null) {
                 showMessage("Network down!", context)
                 return
             }
 
-            println("Using cached!")
-
             val nextLesson = cached.getNextLesson()
             if (nextLesson == null) {
                 showMessage("No more school today!", context)
             } else {
-                showLesson(nextLesson, cached.lessons.indexOf(nextLesson), context)
+                showLesson(nextLesson, cached.lessons.indexOf(nextLesson))
             }
 
+            return
+        }
+
+        if (edupage == null) {
+            showMessage("Error getting timetable", context)
             return
         }
 
@@ -165,15 +163,14 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
             return
         }
 
-        val key = dateFormat.format(today)
-        ApplicationCache.cache.put(key, timetable)
+        ApplicationCache.cache.put(todayDateString, timetable)
 
         val nextLesson = timetable.getNextLesson()
         if (nextLesson == null) {
             showMessage("No more school today!", context)
         } else {
             println("Showing lesson...")
-            showLesson(nextLesson, timetable.lessons.indexOf(nextLesson), context)
+            showLesson(nextLesson, timetable.lessons.indexOf(nextLesson))
         }
 
 
@@ -209,43 +206,37 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         appWidgetIds: IntArray
     ) {
         println("Updating...")
+        WidgetAlarm.stopAlarm(context)
+        WidgetAlarm.startAlarm(context)
+
         if (remoteViews == null) {
             remoteViews = RemoteViews(context.packageName, R.layout.nextlesson_appwidget)
         }
 
-        if (edupage == null) {
-            val username = PreferencesHelper.getString(context, "username", "no_username")
-            if (username == "no_username") {
-                showMessage("No username!", context)
-                return
-            }
-
-            val password = PreferencesHelper.getString(context, "password", "no_password")
-            if (password == "no_password") {
-                showMessage("No password!", context)
-                return
-            }
-
-            if (NetworkUtil.isInternetAvailable()) {
-                edupage = Edupage(context)
-
-                edupage!!.login(username, password, object : LoginCallback {
-                    override fun onError() {
-                        showMessage("Invalid credentials!", context)
-                        updateTheme(context)
-                    }
-
-                    override fun onSuccess() {
-                        showNextLessonOrError(context)
-                        updateTheme(context)
-                    }
-                })
-            } else {
-                showNextLessonOrError(context)
-            }
-        } else {
+        if (edupage != null) {
             showNextLessonOrError(context)
             updateTheme(context)
         }
+
+        val username = PreferencesHelper.getString(context, "username", "no_username")
+        if (username == "no_username") {
+            showMessage("No username!", context)
+            return
+        }
+
+        val password = PreferencesHelper.getString(context, "password", "no_password")
+        if (password == "no_password") {
+            showMessage("No password!", context)
+            return
+        }
+
+        edupage = Edupage(context)
+        edupage!!.login(username, password).then {
+            println("in then!")
+            showNextLessonOrError(context)
+        }.onError {
+            it.printStackTrace()
+        }.start()
+
     }
 }

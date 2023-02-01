@@ -10,6 +10,6 @@
     android:resizeMode="vertical|horizontal"
     android:widgetCategory="home_screen"
     tools:ignore="UnusedAttribute"
-    android:previewImage="@drawable/android">
+    android:previewLayout="@layout/nextlesson_appwidget">
 
 </appwidget-provider>

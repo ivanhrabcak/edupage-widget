@@ -1,5 +1,6 @@
 package eu.hrabcak.edupagewidget
 
+import eu.hrabcak.edupagewidget.edupage.Timetable
 import io.github.reactivecircus.cache4k.Cache
 import java.util.Date
 import kotlin.time.Duration

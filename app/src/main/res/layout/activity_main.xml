@@ -98,7 +98,7 @@
         android:layout_width="270dp"
         android:layout_height="0dp"
         android:valueFrom="30"
-        android:valueTo="300"
+        android:valueTo="3000"
         android:stepSize="30"
         android:layout_marginTop="44dp"
         app:layout_constraintEnd_toEndOf="@+id/view"
