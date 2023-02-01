@@ -8,7 +8,6 @@
 
     android:gravity="center"
     android:background="#001627">
-    <!--- android:background="@drawable/nextlesson_widget_shape" !-->
 
     <TextView
         android:id="@+id/next_lesson_title"
@@ -27,7 +26,7 @@
         android:background="#041c2c"
         android:gravity="center"
         android:orientation="vertical"
-        android:padding="10dp"
+        android:padding="8dp"
         android:paddingHorizontal="300dp">
 
         <TextView

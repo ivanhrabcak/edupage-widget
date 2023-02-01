@@ -1,15 +1,11 @@
-package eu.hrabcak.edupagewidget
+package eu.hrabcak.edupagewidget.edupage
 
 import android.content.Context
 import com.android.volley.RequestQueue
 import com.android.volley.toolbox.RequestFuture
 import com.android.volley.toolbox.StringRequest
 import com.android.volley.toolbox.Volley
-import eu.hrabcak.edupagewidget.edupage.Lesson
-import eu.hrabcak.edupagewidget.edupage.LessonDuration
-import eu.hrabcak.edupagewidget.edupage.Task
-import eu.hrabcak.edupagewidget.edupage.Timetable
-import eu.hrabcak.edupagewidget.exception.NotLoggedInException
+import eu.hrabcak.edupagewidget.exception.AlreadyLoggedInException
 import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.*
@@ -28,11 +24,11 @@ class Edupage(context: Context) {
     var data: JSONObject? = null
     private val requestQueue: RequestQueue = Volley.newRequestQueue(context)
 
-    private var isLoggedIn = false
+    var isLoggedIn = false
 
     fun login(username: String, password: String): Task {
         if (isLoggedIn) {
-            throw NotLoggedInException()
+            throw AlreadyLoggedInException()
         }
 
         val future: RequestFuture<String> = RequestFuture.newFuture()
@@ -52,20 +48,15 @@ class Edupage(context: Context) {
 
         requestQueue.add(stringRequest)
         val thread = thread(false) {
-            try {
-                val response = future.get(5, TimeUnit.SECONDS)
-                val rawJSON = response.split("\$j(document).ready(function() {")[1]
-                        .split(");")[0]
-                        .replace("\t", "")
-                        .split("userhome(")[1]
-                        .replace("\n", "")
-                        .replace("\r", "")
-                data = JSONObject(rawJSON)
-                isLoggedIn = true
-            }
-            catch (e: Exception) {
-                e.printStackTrace()
-            }
+            val response = future.get(5, TimeUnit.SECONDS)
+            val rawJSON = response.split("\$j(document).ready(function() {")[1]
+                    .split(");")[0]
+                    .replace("\t", "")
+                    .split("userhome(")[1]
+                    .replace("\n", "")
+                    .replace("\r", "")
+            data = JSONObject(rawJSON)
+            isLoggedIn = true
         }
 
         return Task(thread)
@@ -126,10 +117,12 @@ class Edupage(context: Context) {
 
     fun getTimetable(date: Date): Timetable? {
         if (!isLoggedIn) {
+            println("not logged in")
             return null
         }
 
         if (data == null) {
+            println("data is null")
             return null
         }
 
@@ -139,6 +132,7 @@ class Edupage(context: Context) {
         val dp = data!!.getJSONObject("dp")
         val dates = dp.getJSONObject("dates")
         if (!dates.has(formattedDate)) {
+            println("date not in data")
             return null
         }
 

@@ -10,9 +10,10 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
+import com.android.volley.NoConnectionError
 import eu.hrabcak.edupagewidget.*
+import eu.hrabcak.edupagewidget.edupage.Edupage
 import eu.hrabcak.edupagewidget.edupage.Lesson
-import eu.hrabcak.edupagewidget.helper.NetworkHelper
 import eu.hrabcak.edupagewidget.helper.PreferencesHelper
 import java.text.SimpleDateFormat
 import java.util.*
@@ -36,8 +37,6 @@ fun List<Date>.containsDate(date: Date): Boolean {
 }
 
 class NextLessonWidgetProvider : AppWidgetProvider() {
-    private var edupage: Edupage? = null
-
     companion object {
         const val ACTION_AUTO_UPDATE = "AUTO_UPDATE"
     }
@@ -115,53 +114,7 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
     }
 
     private fun showNextLessonOrError(context: Context, remoteViews: RemoteViews) {
-        val today = Date()
 
-        val dateFormat = SimpleDateFormat("yy-dd-MM")
-        val todayDateString = dateFormat.format(today)
-
-        if (!NetworkHelper.isInternetAvailable()) {
-            val cached = ApplicationCache.cache.get(todayDateString)
-            if (cached == null) {
-                showMessage("Network down!", context, remoteViews)
-                return
-            }
-
-            val nextLesson = cached.getNextLesson()
-            if (nextLesson == null) {
-                showMessage("No more school today!", context, remoteViews)
-            } else {
-                showLesson(nextLesson, cached.lessons.indexOf(nextLesson), remoteViews)
-            }
-
-            return
-        }
-
-        if (edupage == null) {
-            showMessage("Error getting timetable", context, remoteViews)
-            return
-        }
-
-        if (!edupage!!.getTimetableDates()?.containsDate(today)!!) {
-            showMessage("No school today!", context, remoteViews)
-            return
-        }
-
-        val timetable = edupage!!.getTimetable(today)
-        if (timetable == null) {
-            showMessage("Error getting timetable", context, remoteViews)
-            return
-        }
-
-        ApplicationCache.cache.put(todayDateString, timetable)
-
-        val nextLesson = timetable.getNextLesson()
-        if (nextLesson == null) {
-            showMessage("No more school today!", context, remoteViews)
-        } else {
-            println("Showing lesson...")
-            showLesson(nextLesson, timetable.lessons.indexOf(nextLesson), remoteViews)
-        }
     }
 
     private fun createRemoteViews(context: Context): RemoteViews {
@@ -211,15 +164,11 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
+
         WidgetAlarm.stopAlarm(context)
         WidgetAlarm.startAlarm(context)
 
         val remoteViews = createRemoteViews(context)
-
-        if (edupage != null) {
-            showNextLessonOrError(context, remoteViews)
-            updateTheme(context, remoteViews)
-        }
 
         val username = PreferencesHelper.getString(context, "username", "no_username")
         val password = PreferencesHelper.getString(context, "password", "no_password")
@@ -228,12 +177,61 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
             return
         }
 
-        edupage = Edupage(context)
-        edupage!!.login(username, password).then {
-            println("in then!")
-            showNextLessonOrError(context, remoteViews)
-        }.onError {
-            it.printStackTrace()
+        val today = Date()
+        val dateFormat = SimpleDateFormat("yy-dd-MM")
+
+        val todayDateString = dateFormat.format(today)
+
+        val edupage = Edupage(context)
+        edupage.login(username, password).then {
+            if (!edupage.getTimetableDates()?.containsDate(today)!!) {
+                showMessage("No school today!", context, remoteViews)
+                return@then
+            }
+
+            val timetable = edupage.getTimetable(today)
+            if (timetable == null) {
+                showMessage("Error getting timetable", context, remoteViews)
+                return@then
+            }
+
+            EdupageCache.put(context, todayDateString, edupage)
+
+            val nextLesson = timetable.getNextLesson()
+            if (nextLesson == null) {
+                showMessage("No more school today!", context, remoteViews)
+            } else {
+                println("Showing lesson...")
+                showLesson(nextLesson, timetable.lessons.indexOf(nextLesson), remoteViews)
+            }
+        }.onError { e ->
+            val cause = e.cause
+
+            if (cause is NoConnectionError) {
+                val cached = EdupageCache.get(context, todayDateString)
+
+                if (cached == null) {
+                    showMessage("Network down!", context, remoteViews)
+                    return@onError
+                }
+
+                val timetable = cached.getTimetable(today)
+                if (timetable == null) {
+                    showMessage("Error getting timetable", context, remoteViews)
+                    return@onError
+                }
+
+                println("Will be using cached!")
+
+                val nextLesson = timetable.getNextLesson()
+                if (nextLesson == null) {
+                    showMessage("No more school today!", context, remoteViews)
+                } else {
+                    showLesson(nextLesson, timetable.lessons.indexOf(nextLesson), remoteViews)
+                }
+            } else {
+                e.printStackTrace()
+            }
         }.start()
 
     }
