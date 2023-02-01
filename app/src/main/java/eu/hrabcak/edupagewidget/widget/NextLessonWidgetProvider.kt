@@ -1,32 +1,21 @@
 package eu.hrabcak.edupagewidget.widget
 
+import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
-import android.os.Build
 import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
-import androidx.annotation.RequiresApi
 import eu.hrabcak.edupagewidget.*
 import eu.hrabcak.edupagewidget.edupage.Lesson
 import eu.hrabcak.edupagewidget.helper.NetworkHelper
 import eu.hrabcak.edupagewidget.helper.PreferencesHelper
 import java.text.SimpleDateFormat
 import java.util.*
-
-//fun Date(): Date {
-//    val calendar = Calendar.getInstance()
-//    calendar.add(Calendar.DAY_OF_YEAR, 1)
-//
-//    calendar.set(Calendar.HOUR_OF_DAY, 8)
-//    calendar.set(Calendar.MINUTE, 16)
-//
-//    return calendar.time
-//}
 
 fun List<Date>.containsDate(date: Date): Boolean {
     val calendar = Calendar.getInstance()
@@ -48,7 +37,6 @@ fun List<Date>.containsDate(date: Date): Boolean {
 
 class NextLessonWidgetProvider : AppWidgetProvider() {
     private var edupage: Edupage? = null
-    private var remoteViews: RemoteViews? = null
 
     companion object {
         const val ACTION_AUTO_UPDATE = "AUTO_UPDATE"
@@ -84,26 +72,28 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         onUpdate(context, appWidgetManager, widgetIds)
     }
 
-    private fun showLesson(lesson: Lesson, index: Int) {
-        remoteViews?.setCharSequence(R.id.lesson_number, "setText", (index + 1).toString() + ".")
-        remoteViews?.setCharSequence(R.id.subject, "setText", lesson.name)
-        remoteViews?.setCharSequence(R.id.time, "setText", lesson.time.toString())
-        remoteViews?.setCharSequence(R.id.classroom, "setText", lesson.classroom)
+    private fun showLesson(lesson: Lesson, index: Int, remoteViews: RemoteViews) {
+        remoteViews.run {
+            setCharSequence(R.id.lesson_number, "setText", (index + 1).toString() + ".")
+            setCharSequence(R.id.subject, "setText", lesson.name)
+            setCharSequence(R.id.time, "setText", lesson.time.toString())
+            setCharSequence(R.id.classroom, "setText", lesson.classroom)
 
-        remoteViews?.setViewVisibility(R.id.lessonview, View.VISIBLE)
-        remoteViews?.setViewVisibility(R.id.next_lesson_title, View.VISIBLE)
-        remoteViews?.setViewVisibility(R.id.error, View.GONE)
+            setViewVisibility(R.id.lessonview, View.VISIBLE)
+            setViewVisibility(R.id.next_lesson_title, View.VISIBLE)
+            setViewVisibility(R.id.error, View.GONE)
+        }
     }
 
-    private fun showMessage(error: String, context: Context) {
+    private fun showMessage(error: String, context: Context, remoteViews: RemoteViews) {
+        remoteViews.run {
+            setCharSequence(R.id.error, "setText", error)
+            setViewVisibility(R.id.error, View.VISIBLE)
+            setViewVisibility(R.id.lessonview, View.GONE)
+            setViewVisibility(R.id.next_lesson_title, View.GONE)
+        }
 
-        remoteViews?.setCharSequence(R.id.error, "setText", error)
-
-        remoteViews?.setViewVisibility(R.id.error, View.VISIBLE)
-
-        remoteViews?.setViewVisibility(R.id.lessonview, View.GONE)
-        remoteViews?.setViewVisibility(R.id.next_lesson_title, View.GONE)
-        updateTheme(context)
+        updateTheme(context, remoteViews)
     }
 
     override fun onAppWidgetOptionsChanged(
@@ -112,19 +102,19 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         appWidgetId: Int,
         newOptions: Bundle
     ) {
-        val remoteViews = RemoteViews(context.packageName, R.layout.nextlesson_appwidget)
+        val remoteViews = createRemoteViews(context)
         AppWidgetManager.getInstance(context).updateAppWidget(appWidgetId, remoteViews)
 
         onUpdate(context, appWidgetManager, arrayOf(appWidgetId).toIntArray())
     }
 
-    private fun applyRemoteViews(context: Context) {
+    private fun applyRemoteViews(context: Context, remoteViews: RemoteViews) {
         println("Applying views..")
         val appWidgetManager = AppWidgetManager.getInstance(context)
         appWidgetManager.updateAppWidget(ComponentName(context, this::class.java), remoteViews)
     }
 
-    private fun showNextLessonOrError(context: Context) {
+    private fun showNextLessonOrError(context: Context, remoteViews: RemoteViews) {
         val today = Date()
 
         val dateFormat = SimpleDateFormat("yy-dd-MM")
@@ -133,33 +123,33 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         if (!NetworkHelper.isInternetAvailable()) {
             val cached = ApplicationCache.cache.get(todayDateString)
             if (cached == null) {
-                showMessage("Network down!", context)
+                showMessage("Network down!", context, remoteViews)
                 return
             }
 
             val nextLesson = cached.getNextLesson()
             if (nextLesson == null) {
-                showMessage("No more school today!", context)
+                showMessage("No more school today!", context, remoteViews)
             } else {
-                showLesson(nextLesson, cached.lessons.indexOf(nextLesson))
+                showLesson(nextLesson, cached.lessons.indexOf(nextLesson), remoteViews)
             }
 
             return
         }
 
         if (edupage == null) {
-            showMessage("Error getting timetable", context)
+            showMessage("Error getting timetable", context, remoteViews)
             return
         }
 
         if (!edupage!!.getTimetableDates()?.containsDate(today)!!) {
-            showMessage("No school today!", context)
+            showMessage("No school today!", context, remoteViews)
             return
         }
 
         val timetable = edupage!!.getTimetable(today)
         if (timetable == null) {
-            showMessage("Error getting timetable", context)
+            showMessage("Error getting timetable", context, remoteViews)
             return
         }
 
@@ -167,16 +157,26 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
 
         val nextLesson = timetable.getNextLesson()
         if (nextLesson == null) {
-            showMessage("No more school today!", context)
+            showMessage("No more school today!", context, remoteViews)
         } else {
             println("Showing lesson...")
-            showLesson(nextLesson, timetable.lessons.indexOf(nextLesson))
+            showLesson(nextLesson, timetable.lessons.indexOf(nextLesson), remoteViews)
         }
-
-
     }
 
-    private fun updateTheme(context: Context) {
+    private fun createRemoteViews(context: Context): RemoteViews {
+        val remoteViews = RemoteViews(context.packageName, R.layout.nextlesson_appwidget)
+
+        // update widget on click
+        val intent = Intent(ACTION_AUTO_UPDATE)
+        val pendingIntent = PendingIntent.getBroadcast(context, 0, intent,
+            PendingIntent.FLAG_CANCEL_CURRENT.or(PendingIntent.FLAG_IMMUTABLE))
+        remoteViews.setOnClickPendingIntent(R.id.widget_parent, pendingIntent)
+
+        return remoteViews
+    }
+
+    private fun updateTheme(context: Context, remoteViews: RemoteViews) {
         val widgetBackgroundColorString = PreferencesHelper.getString(context, "widgetBackgroundColor", "#001627")
         val lessonBackgroundColorString = PreferencesHelper.getString(context, "lessonBackgroundColor", "#041c2c")
         val textColorString = PreferencesHelper.getString(context, "textColor", "white")
@@ -191,13 +191,19 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         )
 
         textViews.forEach {
-            remoteViews?.setTextColor(it, textColor)
+            remoteViews.setTextColor(it, textColor)
         }
 
-        remoteViews?.setInt(R.id.widget_parent, "setBackgroundColor", widgetBackgroundColor)
-        remoteViews?.setInt(R.id.lessonview, "setBackgroundColor", lessonBackgroundColor)
+        remoteViews.run {
+            textViews.forEach {
+                setTextColor(it, textColor)
+            }
 
-        applyRemoteViews(context)
+            setInt(R.id.widget_parent, "setBackgroundColor", widgetBackgroundColor)
+            setInt(R.id.lessonview, "setBackgroundColor", lessonBackgroundColor)
+        }
+
+        applyRemoteViews(context, remoteViews)
     }
 
     override fun onUpdate(
@@ -205,35 +211,27 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
-        println("Updating...")
         WidgetAlarm.stopAlarm(context)
         WidgetAlarm.startAlarm(context)
 
-        if (remoteViews == null) {
-            remoteViews = RemoteViews(context.packageName, R.layout.nextlesson_appwidget)
-        }
+        val remoteViews = createRemoteViews(context)
 
         if (edupage != null) {
-            showNextLessonOrError(context)
-            updateTheme(context)
+            showNextLessonOrError(context, remoteViews)
+            updateTheme(context, remoteViews)
         }
 
         val username = PreferencesHelper.getString(context, "username", "no_username")
-        if (username == "no_username") {
-            showMessage("No username!", context)
-            return
-        }
-
         val password = PreferencesHelper.getString(context, "password", "no_password")
-        if (password == "no_password") {
-            showMessage("No password!", context)
+        if (username == "no_username" || password == "no_password") {
+            showMessage("Invalid credentials!", context, remoteViews)
             return
         }
 
         edupage = Edupage(context)
         edupage!!.login(username, password).then {
             println("in then!")
-            showNextLessonOrError(context)
+            showNextLessonOrError(context, remoteViews)
         }.onError {
             it.printStackTrace()
         }.start()

@@ -19,7 +19,8 @@ object WidgetAlarm {
         val alarmIntent = Intent(context, NextLessonWidgetProvider::class.java)
         alarmIntent.action = NextLessonWidgetProvider.ACTION_AUTO_UPDATE
 
-        val pendingIntent = PendingIntent.getBroadcast(context, ALARM_ID, alarmIntent, PendingIntent.FLAG_CANCEL_CURRENT.or(PendingIntent.FLAG_IMMUTABLE))
+        val pendingIntent = PendingIntent.getBroadcast(context, ALARM_ID, alarmIntent,
+            PendingIntent.FLAG_CANCEL_CURRENT.or(PendingIntent.FLAG_IMMUTABLE))
 
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         alarmManager.setRepeating(AlarmManager.RTC_WAKEUP, calendar.timeInMillis,
@@ -28,7 +29,8 @@ object WidgetAlarm {
 
     fun stopAlarm(context: Context) {
         val alarmIntent = Intent(NextLessonWidgetProvider.ACTION_AUTO_UPDATE)
-        val pendingIntent = PendingIntent.getBroadcast(context, ALARM_ID, alarmIntent, PendingIntent.FLAG_CANCEL_CURRENT.or(PendingIntent.FLAG_IMMUTABLE))
+        val pendingIntent = PendingIntent.getBroadcast(context, ALARM_ID, alarmIntent,
+            PendingIntent.FLAG_CANCEL_CURRENT.or(PendingIntent.FLAG_IMMUTABLE))
 
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         alarmManager.cancel(pendingIntent)
