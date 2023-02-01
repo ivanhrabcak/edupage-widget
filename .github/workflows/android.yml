@@ -24,7 +24,7 @@ jobs:
     - name: Build with Gradle
       run: ./gradlew assembleRelease --stacktrace
     - name: "Rename archive"
-      run: mv app/build/outputs/apk/release app-release.apk
+      run: mv app/build/outputs/apk/release/app-release-unsigned.apk app-release.apk
     - name: "Create GitHub release"
       uses: softprops/action-gh-release@v1
       with:
