@@ -1,15 +1,16 @@
 package eu.hrabcak.edupagewidget.edupage
 
 import android.content.Context
-import com.android.volley.RequestQueue
-import com.android.volley.toolbox.RequestFuture
-import com.android.volley.toolbox.StringRequest
-import com.android.volley.toolbox.Volley
 import eu.hrabcak.edupagewidget.exception.AlreadyLoggedInException
+import eu.hrabcak.edupagewidget.helper.NetworkHelper
+import khttp.get
+import khttp.post
+import khttp.responses.Response
 import org.json.JSONObject
 import java.text.SimpleDateFormat
+import java.time.DayOfWeek
 import java.util.*
-import java.util.concurrent.TimeUnit
+import java.util.concurrent.LinkedBlockingQueue
 import kotlin.concurrent.thread
 
 fun String.toIntNoLeadingZero(): Int {
@@ -20,46 +21,58 @@ fun String.toIntNoLeadingZero(): Int {
     }
 }
 
-class Edupage(context: Context) {
+class Edupage {
     var data: JSONObject? = null
-    private val requestQueue: RequestQueue = Volley.newRequestQueue(context)
+    private var sessionCookie: String? = null
+    private var subdomain: String? = null
 
     var isLoggedIn = false
 
-    fun login(username: String, password: String): Task {
+    fun login(username: String, password: String, subdomain: String): Task {
         if (isLoggedIn) {
             throw AlreadyLoggedInException()
         }
 
-        val future: RequestFuture<String> = RequestFuture.newFuture()
+        var requestUrl = "https://${subdomain}.edupage.org/login/index.php"
+        var csrfToken: String? = null
 
-        val url = "https://portal.edupage.org/index.php?jwid=jw2&module=Login"
-        val parameters: Map<String, String> = mapOf(
-            "meno" to username,
-            "password" to password,
-            "akcia" to "login"
-        )
+        val response = LinkedBlockingQueue<Response>()
+        val task = NetworkHelper.doGET(requestUrl, response)
+            .then {
+                val csrfResponse = response.take()
 
-        val stringRequest: StringRequest = object : StringRequest(Method.POST, url, future, future) {
-            override fun getParams(): Map<String, String> {
-                return parameters
-            }
-        }
+                csrfToken = csrfResponse.text
+                    .split("name=\"csrfauth\" value=\"")[1]
+                    .split("\"")[0]
 
-        requestQueue.add(stringRequest)
-        val thread = thread(false) {
-            val response = future.get(5, TimeUnit.SECONDS)
-            val rawJSON = response.split("\$j(document).ready(function() {")[1]
+                sessionCookie = csrfResponse.cookies["PHPSESSID"]
+            }.then {
+                val parameters = mapOf(
+                    "username" to username,
+                    "password" to password,
+                    "csrfauth" to csrfToken!!
+                )
+
+                requestUrl = "https://${subdomain}.edupage.org/login/edubarLogin.php"
+                val response = post(
+                    requestUrl,
+                    headers = mapOf("Content-Type" to "application/x-www-form-urlencoded"),
+                    data = parameters,
+                    cookies = mapOf("PHPSESSID" to sessionCookie!!)
+                )
+
+                val rawJSON = response.text.split("\$j(document).ready(function() {")[1]
                     .split(");")[0]
                     .replace("\t", "")
                     .split("userhome(")[1]
                     .replace("\n", "")
                     .replace("\r", "")
-            data = JSONObject(rawJSON)
-            isLoggedIn = true
-        }
+                data = JSONObject(rawJSON)
+                isLoggedIn = true
+                this.subdomain = subdomain
+            }
 
-        return Task(thread)
+        return task
     }
 
     private fun idToTeacher(id: String): String? {
@@ -186,7 +199,9 @@ class Edupage(context: Context) {
                 null
             }
 
-            val lesson = Lesson(subject, teacher, classroomNumber, lessonDuration, onlineLessonLink)
+            val lessonNumber = subj.getString("period").toInt()
+
+            val lesson = Lesson(subject, teacher, classroomNumber, lessonDuration, onlineLessonLink, lessonNumber)
             timetable.add(lesson)
         }
 

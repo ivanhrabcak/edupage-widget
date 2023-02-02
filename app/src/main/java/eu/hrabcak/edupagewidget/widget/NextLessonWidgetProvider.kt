@@ -10,11 +10,11 @@ import android.graphics.Color
 import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
-import com.android.volley.NoConnectionError
 import eu.hrabcak.edupagewidget.*
 import eu.hrabcak.edupagewidget.edupage.Edupage
 import eu.hrabcak.edupagewidget.edupage.Lesson
 import eu.hrabcak.edupagewidget.helper.PreferencesHelper
+import java.net.UnknownHostException
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -71,9 +71,9 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         onUpdate(context, appWidgetManager, widgetIds)
     }
 
-    private fun showLesson(lesson: Lesson, index: Int, remoteViews: RemoteViews) {
+    private fun showLesson(lesson: Lesson, remoteViews: RemoteViews) {
         remoteViews.run {
-            setCharSequence(R.id.lesson_number, "setText", (index + 1).toString() + ".")
+            setCharSequence(R.id.lesson_number, "setText", lesson.lessonNumber.toString() + ".")
             setCharSequence(R.id.subject, "setText", lesson.name)
             setCharSequence(R.id.time, "setText", lesson.time.toString())
             setCharSequence(R.id.classroom, "setText", lesson.classroom)
@@ -168,7 +168,8 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
 
         val username = PreferencesHelper.getString(context, "username", "no_username")
         val password = PreferencesHelper.getString(context, "password", "no_password")
-        if (username == "no_username" || password == "no_password") {
+        val subdomain = PreferencesHelper.getString(context, "subdomain", "no_subdomain")
+        if (username == "no_username" || password == "no_password" || subdomain == "no_subdomain") {
             showMessage("Invalid credentials!", context, remoteViews)
             return
         }
@@ -178,8 +179,8 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
 
         val todayDateString = dateFormat.format(today)
 
-        val edupage = Edupage(context)
-        edupage.login(username, password).then {
+        val edupage = Edupage()
+        edupage.login(username, password, subdomain).then {
             if (!edupage.getTimetableDates()?.containsDate(today)!!) {
                 showMessage("No school today!", context, remoteViews)
                 return@then
@@ -198,12 +199,10 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
                 showMessage("No more school today!", context, remoteViews)
             } else {
                 println("Showing lesson...")
-                showLesson(nextLesson, timetable.lessons.indexOf(nextLesson), remoteViews)
+                showLesson(nextLesson, remoteViews)
             }
         }.onError { e ->
-            val cause = e.cause
-
-            if (cause is NoConnectionError) {
+            if (e is UnknownHostException) {
                 val cached = EdupageCache.get(context, todayDateString)
 
                 if (cached == null) {
@@ -223,7 +222,7 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
                 if (nextLesson == null) {
                     showMessage("No more school today!", context, remoteViews)
                 } else {
-                    showLesson(nextLesson, timetable.lessons.indexOf(nextLesson), remoteViews)
+                    showLesson(nextLesson, remoteViews)
                 }
             } else {
                 e.printStackTrace()

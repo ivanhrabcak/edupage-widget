@@ -5,11 +5,12 @@ data class Lesson(
     val teacher: String?,
     val classroom: String?,
     val time: LessonDuration,
-    val onlineLessonLink: String?
+    val onlineLessonLink: String?,
+    val lessonNumber: Int
 ) {
     companion object {
         fun breakLesson(time: LessonDuration): Lesson {
-            return Lesson("Break", "No Teacher", "No Classroom", time, null)
+            return Lesson("Break", "No Teacher", "No Classroom", time, null, -1)
         }
     }
 }

@@ -20,7 +20,7 @@ object EdupageCache {
         }
 
         val edupageData = JSONObject(cachedData)
-        val edupage = Edupage(context)
+        val edupage = Edupage()
         edupage.data = edupageData
         edupage.isLoggedIn = true
 
