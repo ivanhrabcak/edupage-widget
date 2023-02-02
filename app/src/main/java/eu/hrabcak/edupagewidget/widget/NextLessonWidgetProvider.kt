@@ -18,6 +18,15 @@ import java.net.UnknownHostException
 import java.text.SimpleDateFormat
 import java.util.*
 
+//fun Date(): Date {
+//    val calendar = Calendar.getInstance()
+//    calendar.add(Calendar.DAY_OF_YEAR, 1)
+//    calendar.set(Calendar.HOUR_OF_DAY, 8)
+//    calendar.set(Calendar.MINUTE, 0)
+//
+//    return calendar.time
+//}
+
 fun List<Date>.containsDate(date: Date): Boolean {
     val calendar = Calendar.getInstance()
 
@@ -200,6 +209,7 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
             } else {
                 println("Showing lesson...")
                 showLesson(nextLesson, remoteViews)
+                applyRemoteViews(context, remoteViews)
             }
         }.onError { e ->
             if (e is UnknownHostException) {
@@ -223,6 +233,7 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
                     showMessage("No more school today!", context, remoteViews)
                 } else {
                     showLesson(nextLesson, remoteViews)
+                    applyRemoteViews(context, remoteViews)
                 }
             } else {
                 e.printStackTrace()
