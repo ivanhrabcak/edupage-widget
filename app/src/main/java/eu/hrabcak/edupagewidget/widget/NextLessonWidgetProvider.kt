@@ -13,19 +13,11 @@ import android.widget.RemoteViews
 import eu.hrabcak.edupagewidget.*
 import eu.hrabcak.edupagewidget.edupage.Edupage
 import eu.hrabcak.edupagewidget.edupage.Lesson
+import eu.hrabcak.edupagewidget.helper.Logger
 import eu.hrabcak.edupagewidget.helper.PreferencesHelper
 import java.net.UnknownHostException
 import java.text.SimpleDateFormat
 import java.util.*
-
-//fun Date(): Date {
-//    val calendar = Calendar.getInstance()
-//    calendar.add(Calendar.DAY_OF_YEAR, 1)
-//    calendar.set(Calendar.HOUR_OF_DAY, 8)
-//    calendar.set(Calendar.MINUTE, 0)
-//
-//    return calendar.time
-//}
 
 fun List<Date>.containsDate(date: Date): Boolean {
     val calendar = Calendar.getInstance()
@@ -80,6 +72,106 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         onUpdate(context, appWidgetManager, widgetIds)
     }
 
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle
+    ) {
+        val remoteViews = createRemoteViews(context)
+        AppWidgetManager.getInstance(context).updateAppWidget(appWidgetId, remoteViews)
+
+        onUpdate(context, appWidgetManager, arrayOf(appWidgetId).toIntArray())
+    }
+
+    override fun onUpdate(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetIds: IntArray
+    ) {
+        WidgetAlarm.stopAlarm(context)
+        WidgetAlarm.startAlarm(context)
+
+        val remoteViews = createRemoteViews(context)
+
+        val username = PreferencesHelper.getString(context, "username", "no_username")
+        val password = PreferencesHelper.getString(context, "password", "no_password")
+        val subdomain = PreferencesHelper.getString(context, "subdomain", "no_subdomain")
+        if (username == "no_username" || password == "no_password" || subdomain == "no_subdomain") {
+            showMessage("Invalid credentials!", context, remoteViews)
+            return
+        }
+
+        val today = Date()
+        val dateFormat = SimpleDateFormat("yy-dd-MM")
+
+        val todayDateString = dateFormat.format(today)
+
+        val edupage = Edupage()
+        edupage.login(username, password, subdomain).then {
+            if (!edupage.getTimetableDates()?.containsDate(today)!!) {
+                showMessage("No school today!", context, remoteViews)
+                return@then
+            }
+
+            val timetable = edupage.getTimetable(today)
+            if (timetable == null) {
+                showMessage("Error getting timetable", context, remoteViews)
+                return@then
+            }
+
+            EdupageCache.put(context, todayDateString, edupage)
+
+            val nextLesson = timetable.getNextLesson()
+            if (nextLesson == null) {
+                showMessage("No more school today!", context, remoteViews)
+            } else {
+                println("Showing lesson...")
+                showLesson(nextLesson, remoteViews)
+                applyRemoteViews(context, remoteViews)
+            }
+        }.onError { e ->
+            if (e is UnknownHostException) {
+                Logger.log(context, "I am in a no network situation!")
+                val cached = EdupageCache.get(context, todayDateString)
+
+                if (cached == null) {
+                    Logger.log(context, "Nothing was cached, returning error...")
+                    showMessage("Network down!", context, remoteViews)
+                    return@onError
+                }
+
+                val timetable = cached.getTimetable(today)
+                if (timetable == null) {
+                    Logger.log(context, "Something was cached, but there was an error while getting the timetable!")
+                    showMessage("Error getting timetable", context, remoteViews)
+                    return@onError
+                }
+
+                println("Will be using cached!")
+
+                Logger.log(context, "There is a valid cache!")
+
+                val nextLesson = timetable.getNextLesson()
+                if (nextLesson == null) {
+                    showMessage("No more school today!", context, remoteViews)
+                    Logger.log(context, "I found no more lessons today (cached)!")
+                } else {
+                    Logger.log(context, "I will display a lesson from the cache!")
+                    showLesson(nextLesson, remoteViews)
+                    applyRemoteViews(context, remoteViews)
+                }
+            } else {
+                val stackTrace = e.stackTraceToString()
+                Logger.log(context, "Widget updating stack trace:\n$stackTrace")
+
+                e.printStackTrace()
+            }
+        }.start()
+
+    }
+
     private fun showLesson(lesson: Lesson, remoteViews: RemoteViews) {
         remoteViews.run {
             setCharSequence(R.id.lesson_number, "setText", lesson.lessonNumber.toString() + ".")
@@ -102,18 +194,6 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         }
 
         updateTheme(context, remoteViews)
-    }
-
-    override fun onAppWidgetOptionsChanged(
-        context: Context,
-        appWidgetManager: AppWidgetManager,
-        appWidgetId: Int,
-        newOptions: Bundle
-    ) {
-        val remoteViews = createRemoteViews(context)
-        AppWidgetManager.getInstance(context).updateAppWidget(appWidgetId, remoteViews)
-
-        onUpdate(context, appWidgetManager, arrayOf(appWidgetId).toIntArray())
     }
 
     private fun applyRemoteViews(context: Context, remoteViews: RemoteViews) {
@@ -162,83 +242,5 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         }
 
         applyRemoteViews(context, remoteViews)
-    }
-
-    override fun onUpdate(
-        context: Context,
-        appWidgetManager: AppWidgetManager,
-        appWidgetIds: IntArray
-    ) {
-
-        WidgetAlarm.stopAlarm(context)
-        WidgetAlarm.startAlarm(context)
-
-        val remoteViews = createRemoteViews(context)
-
-        val username = PreferencesHelper.getString(context, "username", "no_username")
-        val password = PreferencesHelper.getString(context, "password", "no_password")
-        val subdomain = PreferencesHelper.getString(context, "subdomain", "no_subdomain")
-        if (username == "no_username" || password == "no_password" || subdomain == "no_subdomain") {
-            showMessage("Invalid credentials!", context, remoteViews)
-            return
-        }
-
-        val today = Date()
-        val dateFormat = SimpleDateFormat("yy-dd-MM")
-
-        val todayDateString = dateFormat.format(today)
-
-        val edupage = Edupage()
-        edupage.login(username, password, subdomain).then {
-            if (!edupage.getTimetableDates()?.containsDate(today)!!) {
-                showMessage("No school today!", context, remoteViews)
-                return@then
-            }
-
-            val timetable = edupage.getTimetable(today)
-            if (timetable == null) {
-                showMessage("Error getting timetable", context, remoteViews)
-                return@then
-            }
-
-            EdupageCache.put(context, todayDateString, edupage)
-
-            val nextLesson = timetable.getNextLesson()
-            if (nextLesson == null) {
-                showMessage("No more school today!", context, remoteViews)
-            } else {
-                println("Showing lesson...")
-                showLesson(nextLesson, remoteViews)
-                applyRemoteViews(context, remoteViews)
-            }
-        }.onError { e ->
-            if (e is UnknownHostException) {
-                val cached = EdupageCache.get(context, todayDateString)
-
-                if (cached == null) {
-                    showMessage("Network down!", context, remoteViews)
-                    return@onError
-                }
-
-                val timetable = cached.getTimetable(today)
-                if (timetable == null) {
-                    showMessage("Error getting timetable", context, remoteViews)
-                    return@onError
-                }
-
-                println("Will be using cached!")
-
-                val nextLesson = timetable.getNextLesson()
-                if (nextLesson == null) {
-                    showMessage("No more school today!", context, remoteViews)
-                } else {
-                    showLesson(nextLesson, remoteViews)
-                    applyRemoteViews(context, remoteViews)
-                }
-            } else {
-                e.printStackTrace()
-            }
-        }.start()
-
     }
 }

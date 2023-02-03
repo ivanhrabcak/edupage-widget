@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import androidx.annotation.RequiresApi
+import eu.hrabcak.edupagewidget.helper.Logger
 import java.util.Calendar
 
 object WidgetAlarm {
