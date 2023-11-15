@@ -14,6 +14,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "edupage-widget-kotlin"
+rootProject.name = "edupage-widget"
 include(":app")
  
