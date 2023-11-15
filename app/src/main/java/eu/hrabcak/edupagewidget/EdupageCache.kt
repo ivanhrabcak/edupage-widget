@@ -19,6 +19,8 @@ object EdupageCache {
             return null
         }
 
+        println("Returning chached edupage!")
+
         val edupageData = JSONObject(cachedData)
         val edupage = Edupage()
         edupage.data = edupageData
