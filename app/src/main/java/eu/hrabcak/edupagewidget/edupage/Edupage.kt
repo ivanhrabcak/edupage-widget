@@ -1,17 +1,14 @@
 package eu.hrabcak.edupagewidget.edupage
 
-import android.content.Context
 import eu.hrabcak.edupagewidget.exception.AlreadyLoggedInException
 import eu.hrabcak.edupagewidget.helper.NetworkHelper
-import khttp.get
 import khttp.post
 import khttp.responses.Response
 import org.json.JSONObject
 import java.text.SimpleDateFormat
-import java.time.DayOfWeek
-import java.util.*
+import java.util.Calendar
+import java.util.Date
 import java.util.concurrent.LinkedBlockingQueue
-import kotlin.concurrent.thread
 
 fun String.toIntNoLeadingZero(): Int {
     return if (this.startsWith("0")) {
