@@ -34,6 +34,10 @@ class Task(
         }
     }
 
+    fun join() {
+        task.join()
+    }
+
     fun then(runnable: Runnable): Task {
         afterCompletion.add(runnable)
 
