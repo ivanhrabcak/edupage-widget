@@ -7,6 +7,8 @@ import org.json.JSONObject
 import java.text.SimpleDateFormat
 import java.util.*
 
+
+// todo: add cache expiration -> 2 hours?
 object EdupageCache {
     fun get(context: Context, date: String): Edupage? {
         val cachedDataDate = PreferencesHelper.getString(context, "cached_data_date", "no_cached_data")
