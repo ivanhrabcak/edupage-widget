@@ -125,6 +125,105 @@ class Edupage {
         return timetableDates
     }
 
+    fun getLunch(date: Date): Lunch? {
+        if (!isLoggedIn) {
+            return null
+        }
+
+        val dateFormat = SimpleDateFormat("yyyyMMdd")
+        val formattedDate = dateFormat.format(date)
+
+        val requestUrl = "https://${subdomain}.edupage.org/menu/?date=$formattedDate"
+
+        val result = LinkedBlockingQueue<Lunch?>()
+
+        val response = LinkedBlockingQueue<Response>()
+        val task = NetworkHelper.doGET(
+            requestUrl,
+            response,
+            mapOf(
+                "PHPSESSID" to sessionCookie!!
+            )
+        ).then {
+            val lunchDataResponse = response.take()
+
+            val lunchDataRaw = lunchDataResponse.text.split("edupageData: ")[1].split(",\r\n")[0]
+            val lunchData = JSONObject(lunchDataRaw)
+
+            val lunchesData = lunchData.getJSONObject(subdomain!!)
+
+            val lunchDateFormat = SimpleDateFormat("yyyy-MM-dd")
+
+            var lunch = lunchesData.getOrNull<JSONObject>("novyListok")?.getOrNull<JSONObject>(lunchDateFormat.format(date))
+            if (lunch == null) {
+                result.add(null)
+                return@then
+            }
+
+            lunch = lunch.getOrNull<JSONObject>("2")
+
+            if (lunch?.getBoolean("isCooking") != true) {
+                result.add(Lunch.notCooking())
+                return@then
+            }
+
+            val servedFromRaw = lunch.getOrNull<String>("vydaj_od")
+            val servedToRaw = lunch.getOrNull<String>("vyday_do")
+
+            val servingDateFormat = SimpleDateFormat("H-mm")
+
+            val servedFrom = if (servedFromRaw != null) {
+               servingDateFormat.parse(servedFromRaw)
+            } else {
+                null
+            }
+
+            val servedTo = if (servedToRaw != null) {
+                servingDateFormat.parse(servedToRaw)
+            } else {
+                null
+            }
+
+            val title = lunch.getString("nazov")
+
+            val menus = mutableListOf<Menu>()
+            for (food in lunch.getJSONArray("rows").iterator<JSONObject?>()) {
+                if (food == null) {
+                    continue
+                }
+
+                val name = food.getString("nazov")
+                val allergens = food.getString("alergenyStr")
+                val weight = food.getString("hmotnostiStr")
+                var number = food.getOrNull<String>("menusStr") ?: ""
+
+                number = number.replace(": ", "")
+
+                menus.add(Menu(
+                    name,
+                    allergens,
+                    weight,
+                    number
+                ))
+            }
+
+            result.add(Lunch(
+                menus,
+                title,
+                servedFrom,
+                servedTo
+            ))
+        }.onError {
+            it.printStackTrace()
+            result.add(null)
+        }
+
+        task.start()
+        task.join()
+
+        return result.take()
+    }
+
     fun getTimetable(date: Date): Timetable? {
         if (!isLoggedIn) {
             println("not logged in")

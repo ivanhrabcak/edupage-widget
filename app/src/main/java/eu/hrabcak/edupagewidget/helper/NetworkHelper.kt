@@ -2,6 +2,7 @@ package eu.hrabcak.edupagewidget.helper
 
 import eu.hrabcak.edupagewidget.edupage.Task
 import khttp.get
+import khttp.head
 import khttp.post
 import khttp.responses.Response
 import java.io.IOException
@@ -32,8 +33,15 @@ object NetworkHelper {
         return result.take()
     }
 
-    fun doGET(url: String, result: LinkedBlockingQueue<Response>): Task = Task(thread(false) {
-        result.add(get(url))
+    fun doGET(url: String, result: LinkedBlockingQueue<Response>, cookies: Map<String, String>? = null): Task = Task(thread(false) {
+        if (cookies == null) {
+            result.add(get(url))
+        } else {
+            result.add(get(
+                url,
+                cookies = cookies
+            ))
+        }
     })
 
     fun doPOST(

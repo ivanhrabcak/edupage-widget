@@ -7,6 +7,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.icu.text.SimpleDateFormat
 import android.os.Bundle
 import android.view.View
 import android.widget.RemoteViews
@@ -14,6 +15,7 @@ import eu.hrabcak.edupagewidget.*
 import eu.hrabcak.edupagewidget.edupage.Edupage
 import eu.hrabcak.edupagewidget.edupage.Lesson
 import eu.hrabcak.edupagewidget.helper.EdupageCredentials
+import eu.hrabcak.edupagewidget.helper.NetworkHelper
 import eu.hrabcak.edupagewidget.helper.PreferencesHelper
 import java.util.*
 
@@ -84,12 +86,20 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         updateTheme(context, remoteViews)
     }
 
-    private fun createNewEdupage(credentials: EdupageCredentials): Edupage {
+    private fun createNewEdupage(context: Context, formattedDate: String, credentials: EdupageCredentials): Edupage? {
         val edupage = Edupage()
         val task = edupage.login(credentials.username, credentials.password, credentials.subdomain)
+            .onError { it.printStackTrace() }
 
         task.start()
         task.join()
+
+        if (edupage.data == null) {
+            // no network available
+            return null
+        }
+
+        EdupageCache.put(context, formattedDate, edupage)
 
         return edupage
     }
@@ -197,14 +207,17 @@ class NextLessonWidgetProvider : AppWidgetProvider() {
         }
 
         val today = Date()
-        val dateFormat = android.icu.text.SimpleDateFormat("yy-dd-MM")
+        val dateFormat = SimpleDateFormat("yy-dd-MM")
 
         val formattedDate = dateFormat.format(today)
 
         val edupage = EdupageCache.get(context, formattedDate)
-            ?: createNewEdupage(credentials)
+            ?: createNewEdupage(context, formattedDate, credentials)
 
-        EdupageCache.put(context, formattedDate, edupage)
+        if (edupage == null) {
+            showMessage("No network available!", context, remoteViews)
+            return
+        }
 
         val timetableDates = edupage.getTimetableDates() ?: listOf()
         if (!timetableDates.containsDate(today)) {

@@ -12,6 +12,7 @@ import android.os.Bundle
 import android.widget.*
 import androidx.annotation.RequiresApi
 import com.google.android.material.slider.Slider
+import eu.hrabcak.edupagewidget.edupage.Edupage
 import eu.hrabcak.edupagewidget.helper.Logger
 import eu.hrabcak.edupagewidget.helper.PreferencesHelper
 import eu.hrabcak.edupagewidget.widget.NextLessonWidgetProvider
@@ -47,6 +48,16 @@ class MainActivity : AppCompatActivity() {
         val savedUsername = PreferencesHelper.getString(this, "username", "no_username")
         val savedPassword = PreferencesHelper.getString(this, "password", "no_password")
         val savedUpdateInterval = PreferencesHelper.getString(this, "updateInterval", "30").toInt()
+
+//        val edupage = Edupage()
+//        val loginTask = edupage.login(savedUsername, savedPassword, savedSubdomain)
+//
+//        loginTask.start()
+//        loginTask.join()
+//
+//        val lunch = edupage.getLunch(Date())
+//        println("Lunch:")
+//        println(lunch)
 
         if (savedSubdomain != "no_subdomain") {
             subdomainEditText.setText(savedSubdomain)
